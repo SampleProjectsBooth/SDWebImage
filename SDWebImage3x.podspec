@@ -23,20 +23,20 @@ Pod::Spec.new do |s|
   s.default_subspec = 'Core'
 
   s.subspec 'Core' do |core|
-    core.source_files = 'SDWebImage/{NS,SD,UI}*.{h,m}'
-    core.exclude_files = 'SDWebImage/UIImage+WebP.{h,m}'
-    core.tvos.exclude_files = 'SDWebImage/MKAnnotationView+WebCache.*'
+    core.source_files = 'SDWebImage3x/{NS,SD,UI}*.{h,m}'
+    core.exclude_files = 'SDWebImage3x/UIImage+WebP.{h,m}'
+    core.tvos.exclude_files = 'SDWebImage3x/MKAnnotationView+WebCache.*'
   end
 
   s.subspec 'MapKit' do |mk|
     mk.ios.deployment_target = '7.0'
-    mk.source_files = 'SDWebImage/MKAnnotationView+WebCache.*'
+    mk.source_files = 'SDWebImage3x/MKAnnotationView+WebCache.*'
     mk.framework = 'MapKit'
     mk.dependency 'SDWebImage3x/Core'
   end
 
   s.subspec 'WebP' do |webp|
-    webp.source_files = 'SDWebImage/UIImage+WebP.{h,m}'
+    webp.source_files = 'SDWebImage3x/UIImage+WebP.{h,m}'
     webp.xcconfig = {
       'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) SD_WEBP=1',
       'USER_HEADER_SEARCH_PATHS' => '$(inherited) $(SRCROOT)/libwebp/src'
