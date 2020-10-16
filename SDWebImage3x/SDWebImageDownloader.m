@@ -120,6 +120,7 @@ static NSString *const kCompletedCallbackKey = @"completed";
     self.session = nil;
 
     [self.downloadQueue cancelAllOperations];
+    [self setSuspended:false];
     
     self.session = newSession;
 }
