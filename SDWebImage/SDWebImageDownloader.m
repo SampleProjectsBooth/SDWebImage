@@ -20,6 +20,7 @@ static NSString *const kCompletedCallbackKey = @"completed";
 @property (assign, nonatomic) Class operationClass;
 @property (strong, nonatomic) NSMutableDictionary *URLCallbacks;
 @property (strong, nonatomic) NSMutableDictionary *HTTPHeaders;
+@property (strong, nonatomic) NSMutableArray *redownloadUrls;
 // This queue is used to serialize the handling of the network responses of all the download operation in a single queue
 @property (SDDispatchQueueSetterSementics, nonatomic) dispatch_queue_t barrierQueue;
 
@@ -102,6 +103,27 @@ static NSString *const kCompletedCallbackKey = @"completed";
     SDDispatchQueueRelease(_barrierQueue);
 }
 
+- (void)recreateSession
+{
+    [self setSuspended:true];
+    
+    NSURLSession *newSession = [NSURLSession sessionWithConfiguration:self.session.configuration
+                                                             delegate:self.session.delegate
+                                                        delegateQueue:nil];
+    
+    self.redownloadUrls = [NSMutableArray array];
+    dispatch_barrier_sync(self.barrierQueue, ^{
+        [self.redownloadUrls addObjectsFromArray:self.URLCallbacks.allKeys];
+    });
+    
+    [self.session invalidateAndCancel];
+    self.session = nil;
+
+    [self.downloadQueue cancelAllOperations];
+    
+    self.session = newSession;
+}
+
 - (void)setValue:(NSString *)value forHTTPHeaderField:(NSString *)field {
     if (value) {
         self.HTTPHeaders[field] = value;
@@ -131,7 +153,17 @@ static NSString *const kCompletedCallbackKey = @"completed";
     _operationClass = operationClass ?: [SDWebImageDownloaderOperation class];
 }
 
-- (id <SDWebImageOperation>)downloadImageWithURL:(NSURL *)url options:(SDWebImageDownloaderOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageDownloaderCompletedBlock)completedBlock {
+- (id <SDWebImageOperation>)downloadImageWithURL:(NSURL *)url options:(SDWebImageDownloaderOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageDownloaderCompletedBlock)completedBlock
+{
+    return [self downloadImageWithURL:url options:options progress:progressBlock completed:completedBlock changeSession:nil];
+}
+
+- (id <SDWebImageOperation>)downloadImageWithURL:(NSURL *)url
+                                         options:(SDWebImageDownloaderOptions)options
+                                        progress:(SDWebImageDownloaderProgressBlock)progressBlock
+                                       completed:(SDWebImageDownloaderCompletedBlock)completedBlock
+                                   changeSession:(void (^)(NSURL *re_url, SDWebImageDownloaderOptions re_options, SDWebImageDownloaderProgressBlock re_progressBlock, SDWebImageDownloaderCompletedBlock re_completedBlock))changeSessionBlock
+{
     __block SDWebImageDownloaderOperation *operation;
     __weak __typeof(self)wself = self;
 
@@ -186,9 +218,22 @@ static NSString *const kCompletedCallbackKey = @"completed";
                                                         cancelled:^{
                                                             SDWebImageDownloader *sself = wself;
                                                             if (!sself) return;
+                                                            __block NSArray *callbacksForURL;
                                                             dispatch_barrier_async(sself.barrierQueue, ^{
+                                                                if ([self.redownloadUrls containsObject:url]) {
+                                                                    callbacksForURL = [sself.URLCallbacks[url] copy];
+                                                                    [self.redownloadUrls removeObject:url];
+                                                                }
                                                                 [sself.URLCallbacks removeObjectForKey:url];
                                                             });
+            
+                                                            for (NSDictionary *callbacks in callbacksForURL) {
+                                                                SDWebImageDownloaderProgressBlock progress = callbacks[kProgressCallbackKey];
+                                                                SDWebImageDownloaderCompletedBlock completed = callbacks[kCompletedCallbackKey];
+                                                                if (changeSessionBlock) {
+                                                                    changeSessionBlock(url, options, progress, completed);
+                                                                }
+                                                            }
                                                         }];
         operation.shouldDecompressImages = wself.shouldDecompressImages;
         

@@ -258,6 +258,25 @@
                         }
                     }
                 }
+            } changeSession:^(NSURL *re_url, SDWebImageDownloaderOptions re_options, SDWebImageDownloaderProgressBlock re_progressBlock, SDWebImageDownloaderCompletedBlock re_completedBlock) {
+                
+                if (weakOperation == nil || weakOperation.isCancelled) {
+                    return;
+                }
+                
+                id <SDWebImageOperation> re_subOperation = [self.imageDownloader downloadImageWithURL:re_url options:re_options progress:re_progressBlock completed:re_completedBlock];
+                
+                weakOperation.cancelBlock = ^{
+                    [re_subOperation cancel];
+                    
+                    @synchronized (self.runningOperations) {
+                        __strong __typeof(weakOperation) strongOperation = weakOperation;
+                        if (strongOperation) {
+                            [self.runningOperations removeObject:strongOperation];
+                        }
+                    }
+                };
+                
             }];
             operation.cancelBlock = ^{
                 [subOperation cancel];

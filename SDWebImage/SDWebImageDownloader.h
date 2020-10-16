@@ -183,6 +183,12 @@ typedef NSDictionary *(^SDWebImageDownloaderHeadersFilterBlock)(NSURL *url, NSDi
                                         progress:(SDWebImageDownloaderProgressBlock)progressBlock
                                        completed:(SDWebImageDownloaderCompletedBlock)completedBlock;
 
+- (void)recreateSession;
+- (id <SDWebImageOperation>)downloadImageWithURL:(NSURL *)url
+                                         options:(SDWebImageDownloaderOptions)options
+                                        progress:(SDWebImageDownloaderProgressBlock)progressBlock
+                                       completed:(SDWebImageDownloaderCompletedBlock)completedBlock
+                                   changeSession:(void (^)(NSURL *re_url, SDWebImageDownloaderOptions re_options, SDWebImageDownloaderProgressBlock re_progressBlock, SDWebImageDownloaderCompletedBlock re_completedBlock))changeSessionBlock;
 /**
  * Sets the download queue suspension state
  */
